@@ -1,7 +1,18 @@
 valid_commit_prefix () {
   MESSAGE=$1
-  REGEX="^(PODA|PODB|PODC|MGMT)-(\d+)*"
-  if [[ $MESSAGE =~ $REGEX ]]
+  REGEX="^(PODA|PODB|PODC|MGMT)-([0-9]+)*"
+  [[ "$MESSAGE" =~ $REGEX ]]
+  if [[ ${BASH_REMATCH[2]} ]]
+  then
+    echo 1
+  else
+    echo 0
+  fi
+}
+
+merged_or_reverted () {
+  MESSAGE=$1
+  if [[ "$MESSAGE" == *"Merge"* ]] || [[ "$MESSAGE" == *"Revert"* ]]
   then
     echo 1
   else
@@ -20,13 +31,13 @@ LINES=$(echo $RESPONSE | sed 's/\\n/ /g' | jq -r ".[] | .commit.message, .author
 while read -r MESSAGE; do
   read -r AUTHOR
   read -r SHA
-  IS_VALID=$(valid_commit_prefix "$MESSAGE")
-  if [[ $IS_VALID == 1 ]]
+  IS_VALID_MESSAGE="FALSE"
+  IS_MERGED_OR_REVERTED=$(merged_or_reverted $MESSAGE)
+  IS_VALID_PREFIX=$(valid_commit_prefix "$MESSAGE")
+  if [[ $IS_VALID_PREFIX == 1 ]] || [[ $IS_MERGED_OR_REVERTED == 1 ]]
   then
-    IS_VALID="TRUE"
-  else
-    IS_VALID="FALSE"
+    IS_VALID_MESSAGE="TRUE"
   fi
-  echo "$SHA $IS_VALID $AUTHOR"
+  echo "$SHA $IS_VALID_MESSAGE $AUTHOR $MESSAGE"
 
 done <<< "$LINES"
