@@ -4,6 +4,10 @@ RESPONSE=$(curl -sL \
   -H "X-GitHub-Api-Version: 2022-11-28" \
   https://api.github.com/repos/packbackbooks/code-challenge-devops/commits)
 
-echo $RESPONSE | sed 's/\\n/ /g' | jq -r ".[] | .commit.message, .author.login, .sha"
+LINES=$(echo $RESPONSE | sed 's/\\n/ /g' | jq -r ".[] | .commit.message, .author.login, .sha")
 
-#echo $LINES
+while read -r MESSAGE; do
+  read -r AUTHOR
+  read -r SHA
+  echo "AUTHOR: $AUTHOR, SHA: $SHA"
+done <<< "$LINES"
