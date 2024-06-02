@@ -51,6 +51,8 @@ fi
 START_TAG=$1
 END_TAG=$2
 
+# NOTE: This hard-codes the assumptions that the app is ALWAYS on version 1, and
+# that patches do not occur.
 REGEX="^v1.([0-9]+).0$"
 
 # validate the tag versions
