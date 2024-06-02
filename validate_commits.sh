@@ -85,7 +85,7 @@ RESPONSE=$(curl -sL \
 echo $RESPONSE | sed 's/\\n/ /g' | jq -r ".[] | .commit.message, .author.login, .sha" > lines.txt
 tac lines.txt > chron-order.txt && rm lines.txt
 
-
+FOUND_START_COMMIT=0
 FOUND_END_COMMIT=0
 while read -r SHA; do
   read -r AUTHOR
