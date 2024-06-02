@@ -20,6 +20,34 @@ merged_or_reverted () {
   fi
 }
 
+START_TAG=$1
+END_TAG=$2
+
+REGEX="^v1.([0-9]+).0$"
+
+# validate the tag versions
+if [[ "$START_TAG" =~ $REGEX ]]
+then
+  START_MINOR_VERSION="${BASH_REMATCH[1]}"
+else
+  echo "Invalid start tag $START_TAG"
+  exit 1
+fi
+
+if [[ "$END_TAG" =~ $REGEX ]]
+then
+  END_MINOR_VERSION="${BASH_REMATCH[1]}"
+else
+  echo "Invalid end tag $END_TAG"
+  exit 1
+fi
+
+if [[ $END_MINOR_VERSION -le $START_MINOR_VERSION ]]
+then
+  echo "End tag ($END_TAG) must be later than start tag ($START_TAG)"
+  exit 1
+fi
+
 RESPONSE=$(curl -sL \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
