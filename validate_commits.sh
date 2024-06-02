@@ -83,6 +83,8 @@ RESPONSE=$(curl -sL \
   https://api.github.com/repos/packbackbooks/code-challenge-devops/commits)
 
 echo $RESPONSE | sed 's/\\n/ /g' | jq -r ".[] | .commit.message, .author.login, .sha" > lines.txt
+# Reverse the order of these lines so that we see the final processed results
+# in chronological order rather than in reverse chron
 tac lines.txt > chron-order.txt && rm lines.txt
 
 FOUND_START_COMMIT=0
@@ -97,7 +99,6 @@ while read -r SHA; do
     then
       FOUND_START_COMMIT=1
     else
-      echo "Skipping $SHA"
       continue
     fi
   fi
@@ -120,9 +121,10 @@ while read -r SHA; do
   then
     IS_VALID_MESSAGE="TRUE"
   fi
-  echo "$SHA $IS_VALID_MESSAGE $AUTHOR $MESSAGE"
+  # Add $MESSAGE into the output below for debug purposes
+  echo "$SHA $IS_VALID_MESSAGE $AUTHOR"
 
 done<chron-order.txt
 
-# final cleanup
+# Final cleanup
 rm chron-order.txt
