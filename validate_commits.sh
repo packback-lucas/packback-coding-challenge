@@ -42,6 +42,12 @@ merged_or_reverted () {
   fi
 }
 
+if [[ -z "$ACCESS_TOKEN" ]]
+then
+  echo "Please set a value for the ACCESS_TOKEN environment variable. See README.md"
+  exit
+fi
+
 START_TAG=$1
 END_TAG=$2
 
