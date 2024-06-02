@@ -1,3 +1,25 @@
+#!/usr/bin/env bash
+
+get_commit_sha_from_tag () {
+  TAG_VERSION=$1
+
+  TAG_RESPONSE=$(curl -sL \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: Bearer $ACCESS_TOKEN" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    https://api.github.com/repos/packbackbooks/code-challenge-devops/git/ref/tags/$TAG_VERSION)
+
+  TAG_SHA=$(echo $TAG_RESPONSE | jq .object.sha | sed 's/"//g')
+  TAG_TO_COMMIT_RESPONSE=$(curl -sL \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: Bearer $ACCESS_TOKEN" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    https://api.github.com/repos/packbackbooks/code-challenge-devops/git/tags/$TAG_SHA)
+
+  COMMIT_SHA=$(echo $TAG_TO_COMMIT_RESPONSE | jq .object.sha | sed 's/"//g')
+  echo $COMMIT_SHA
+}
+
 valid_commit_prefix () {
   MESSAGE=$1
   REGEX="^(PODA|PODB|PODC|MGMT)-([0-9]+)*"
@@ -48,17 +70,49 @@ then
   exit 1
 fi
 
+# Now that we have valid start and end tags, we can translate these
+# into start and end commits, and filter out the relevant parts of the
+# commit history based on these
+START_COMMIT_SHA=$(get_commit_sha_from_tag $START_TAG)
+END_COMMIT_SHA=$(get_commit_sha_from_tag $END_TAG)
+
 RESPONSE=$(curl -sL \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "X-GitHub-Api-Version: 2022-11-28" \
   https://api.github.com/repos/packbackbooks/code-challenge-devops/commits)
 
-LINES=$(echo $RESPONSE | sed 's/\\n/ /g' | jq -r ".[] | .commit.message, .author.login, .sha")
+echo $RESPONSE | sed 's/\\n/ /g' | jq -r ".[] | .commit.message, .author.login, .sha" > lines.txt
+tac lines.txt > chron-order.txt && rm lines.txt
 
-while read -r MESSAGE; do
+
+FOUND_END_COMMIT=0
+while read -r SHA; do
   read -r AUTHOR
-  read -r SHA
+  read -r MESSAGE
+
+  if [[ $FOUND_START_COMMIT -eq 0 ]]
+  then
+    if [[ $SHA == $START_COMMIT_SHA ]]
+    then
+      FOUND_START_COMMIT=1
+    else
+      echo "Skipping $SHA"
+      continue
+    fi
+  fi
+
+  if [[ $FOUND_END_COMMIT -eq 0 ]]
+  then
+    if [[ $SHA == $END_COMMIT_SHA ]]
+    then
+      FOUND_END_COMMIT=1
+    fi
+  else
+    # The end commit was already processed, so we can exit now
+    exit
+  fi
+
   IS_VALID_MESSAGE="FALSE"
   IS_MERGED_OR_REVERTED=$(merged_or_reverted $MESSAGE)
   IS_VALID_PREFIX=$(valid_commit_prefix "$MESSAGE")
@@ -68,4 +122,7 @@ while read -r MESSAGE; do
   fi
   echo "$SHA $IS_VALID_MESSAGE $AUTHOR $MESSAGE"
 
-done <<< "$LINES"
+done<chron-order.txt
+
+# final cleanup
+rm chron-order.txt
